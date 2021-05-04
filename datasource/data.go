@@ -12,6 +12,6 @@ func GenerateData(arr *[]string, lock *sync.Mutex) {
 		*arr = append(*arr, wordGenerator.GetWord(10))
 		lock.Unlock()
 
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 2)
 	}
 }

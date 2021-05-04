@@ -1,15 +1,14 @@
 package main
 
 import (
+	"cwlogsexample/datasource"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/google/uuid"
 	"log"
-	"time"
-
-	"cwlogsexample/datasource"
 	"sync"
+	"time"
 )
 
 var (
@@ -27,7 +26,7 @@ func init() {
 	})
 
 	if err != nil {
-		log.Panic(err)
+		panic(err)
 	}
 
 	cwl = cloudwatchlogs.New(sess)
@@ -47,10 +46,10 @@ func main() {
 
 	go processQueue(&queue, &lock)
 
-	// keeps the code from exiting
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	wg.Wait()
+
 }
 
 func ensureLogGroupExists(name string) error {
@@ -66,7 +65,15 @@ func ensureLogGroupExists(name string) error {
 	}
 
 	_, err = cwl.CreateLogGroup(&cloudwatchlogs.CreateLogGroupInput{
-		LogGroupName: &logGroupName,
+		LogGroupName: &name,
+	})
+	if err != nil {
+		return err
+	}
+
+	_, err = cwl.PutRetentionPolicy(&cloudwatchlogs.PutRetentionPolicyInput{
+		RetentionInDays: aws.Int64(14),
+		LogGroupName:    &name,
 	})
 
 	return err
@@ -85,7 +92,7 @@ func createLogStream() error {
 	return err
 }
 
-func processQueue(queue *[]string, lock *sync.Mutex) {
+func processQueue(queue *[]string, lock *sync.Mutex) error {
 	var logQueue []*cloudwatchlogs.InputLogEvent
 
 	for {
@@ -104,7 +111,6 @@ func processQueue(queue *[]string, lock *sync.Mutex) {
 		lock.Unlock()
 
 		if len(logQueue) > 0 {
-
 			input := cloudwatchlogs.PutLogEventsInput{
 				LogEvents:    logQueue,
 				LogGroupName: &logGroupName,
@@ -115,7 +121,6 @@ func processQueue(queue *[]string, lock *sync.Mutex) {
 				if err != nil {
 					panic(err)
 				}
-
 			} else {
 				input = *input.SetSequenceToken(sequenceToken)
 			}
@@ -123,7 +128,6 @@ func processQueue(queue *[]string, lock *sync.Mutex) {
 			input = *input.SetLogStreamName(logStreamName)
 
 			resp, err := cwl.PutLogEvents(&input)
-
 			if err != nil {
 				log.Println(err)
 			}
@@ -137,4 +141,5 @@ func processQueue(queue *[]string, lock *sync.Mutex) {
 
 		time.Sleep(time.Second * 5)
 	}
+
 }
