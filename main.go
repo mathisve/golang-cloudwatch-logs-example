@@ -21,7 +21,7 @@ var (
 func init() {
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
-			Region: aws.String("eu-west-2"),
+			Region: aws.String("eu-west-2"), // london
 		},
 	})
 
@@ -46,12 +46,15 @@ func main() {
 
 	go processQueue(&queue, &lock)
 
+	// to stop the code from exiting
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	wg.Wait()
 
 }
 
+// ensureLogGroupExists first checks if the log group exists,
+// if it doesn't it will create one.
 func ensureLogGroupExists(name string) error {
 	resp, err := cwl.DescribeLogGroups(&cloudwatchlogs.DescribeLogGroupsInput{})
 	if err != nil {
@@ -79,6 +82,7 @@ func ensureLogGroupExists(name string) error {
 	return err
 }
 
+// createLogStream will make a new logStream with a random uuid as its name.
 func createLogStream() error {
 	name := uuid.New().String()
 
@@ -92,6 +96,7 @@ func createLogStream() error {
 	return err
 }
 
+// processQueue will process the log queue
 func processQueue(queue *[]string, lock *sync.Mutex) error {
 	var logQueue []*cloudwatchlogs.InputLogEvent
 
